@@ -19,8 +19,8 @@ def load_data(path1, path2):
     filename2 = os.listdir(path2)
 
     for i in range(len(filename1)):
-        imgA = np.array(cv2.imread(os.path.join(path1,filename1[1])))
-        imgB = np.array(cv2.imread(os.path.join(path2,filename2[1])))
+        imgA = np.array(cv2.imread(os.path.join(path1,filename1[i])))
+        imgB = np.array(cv2.imread(os.path.join(path2,filename2[i])))
         
         imgA = imgA.astype("float32")
         imgB = imgB.astype("float32")
