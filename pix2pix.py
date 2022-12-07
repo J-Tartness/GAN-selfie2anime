@@ -12,7 +12,7 @@ import numpy as np
 import os
 import cv2
 
-def load_data(path1, path2):
+def load_data(path1, path2, is_testing):
     imgs_A = []
     imgs_B = []
     filename1 = os.listdir(path1)
@@ -25,19 +25,23 @@ def load_data(path1, path2):
         imgA = imgA.astype("float32")
         imgB = imgB.astype("float32")
         
-        if np.random.random() < 0.5:
+        if not is_testing and np.random.random() < 0.5:
             imgA = np.fliplr(imgA)
             imgB = np.fliplr(imgB)
-                
+        
         imgA = (imgA/ 127.5) -1
         imgB = (imgB/ 127.5) -1
         
         imgs_A.append(imgA)
         imgs_B.append(imgB)
-        
+    
     return np.array(imgs_A), np.array(imgs_B)
 
-trainA, trainB = load_data('./testA', './testB')
+trainA, trainB = load_data('./trainA', './trainB', False)
+testA, testB = load_data('./testA', './testB', True)
+
+lossOfGenerator = []
+lossOfDiscriminator = []
 
 # Input shape
 img_rows = 256
@@ -125,11 +129,11 @@ def build_discriminator():
     return Model([img_A, img_B], validity)
 
 def sample_images(generator, epoch):
-    os.makedirs('./output', exist_ok=True)
+    os.makedirs('./outputPix2pix', exist_ok=True)
     r, c = 3, 3
 
-    idx = [0,1,2]
-    imgs_A, imgs_B = trainA[idx], trainB[idx]
+    idx = [5,6,7]
+    imgs_B, imgs_A = trainA[idx], trainB[idx]
     fake_A = generator.predict(imgs_B)
 
     gen_imgs = np.concatenate([imgs_B, fake_A, imgs_A])
@@ -146,7 +150,7 @@ def sample_images(generator, epoch):
             axs[i, j].set_title(titles[i])
             axs[i,j].axis('off')
             cnt += 1
-    fig.savefig("./output/%d.png" % epoch)
+    fig.savefig("./outputPix2pix/%d.png" % epoch)
     plt.close()
 
 def train(generator, discriminator, combined, epochs, batch_size=1, sample_interval=50):
@@ -159,7 +163,7 @@ def train(generator, discriminator, combined, epochs, batch_size=1, sample_inter
 
     for epoch in range(epochs):
         idx = np.random.randint(0, trainA.shape[0], batch_size)
-        imgs_A, imgs_B = trainA[idx], trainB[idx]
+        imgs_B, imgs_A = trainA[idx], trainB[idx]
 
         # ---------------------
         #  Train Discriminator
@@ -187,8 +191,10 @@ def train(generator, discriminator, combined, epochs, batch_size=1, sample_inter
                                                                 g_loss[0],
                                                                 elapsed_time))
 
+        lossOfGenerator.append(g_loss[0])
+        lossOfDiscriminator.append(d_loss[0])
         # If at save interval => save generated image samples
-        if epoch % sample_interval == 0:
+        if (epoch+1) % sample_interval == 0:
             sample_images(generator,epoch)
 
 if __name__ == "__main__":
@@ -223,4 +229,20 @@ if __name__ == "__main__":
                           loss_weights=[1, 100],
                           optimizer=optimizer)
     
-    train(generator, discriminator, combined, 200, 5, 10)
+    train(generator, discriminator, combined, 200, 16, 50)
+    
+    x = range(0,200)
+    plt.plot(x,lossOfGenerator,color = 'r',label = 'generator_loss')
+    plt.plot(x,lossOfDiscriminator,color = 'b',label = 'discriminator_loss')
+    plt.xlabel('steps')
+    plt.ylabel('loss')
+    plt.legend()
+    plt.savefig('./pix2pix.jpg')
+    
+    test_output = generator.predict(testA)
+    test_output = 0.5 * test_output + 0.5
+    num = 0
+    for i in test_output:
+        path = './test_output_pix2pix/'+str(num)+'.jpg'
+        cv2.imwrite(path, i*255)
+        num+=1
