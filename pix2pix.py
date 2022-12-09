@@ -239,6 +239,7 @@ if __name__ == "__main__":
     plt.legend()
     plt.savefig('./pix2pix.jpg')
     
+    os.makedirs('./test_output_cycleGan1', exist_ok=True)
     test_output = generator.predict(testA)
     test_output = 0.5 * test_output + 0.5
     num = 0
